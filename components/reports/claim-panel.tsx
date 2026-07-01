@@ -1,10 +1,19 @@
 "use client";
 
+/**
+ * ClaimPanel — modal for managing a single report.
+ *
+ * Passes the Firebase ID token to claimReportAction / updateStatusAction so
+ * those actions can call the real Firestore API routes when a user is signed in.
+ * Falls back to the mock store path when no token is available.
+ */
+
 import { useState, useTransition } from "react";
 import type { Report, ReportStatus } from "@/lib/types";
 import { StatusPill, UrgencyBadge } from "@/components/layout/status-badge";
 import { needTypeLabels } from "@/lib/ui/urgency-colors";
 import { claimReportAction, updateStatusAction } from "@/app/dashboard/actions";
+import { useAuth } from "@/lib/auth-context";
 
 const NEXT_STATUS: Partial<Record<ReportStatus, ReportStatus>> = {
   claimed: "in_progress",
@@ -24,15 +33,25 @@ export function ClaimPanel({
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { user, getToken } = useAuth();
+
+  async function resolveToken(): Promise<string | undefined> {
+    if (!user) return undefined;
+    try { return await getToken(); } catch { return undefined; }
+  }
 
   function handleClaim() {
     setError(null);
     startTransition(async () => {
-      const result = await claimReportAction(report.id, responderName);
+      const token = await resolveToken();
+      const result = await claimReportAction(report.id, responderName, token);
       if (result.status === "error") {
         setError(result.message ?? "Could not claim this report.");
       } else if (result.report) {
         onUpdated(result.report);
+      } else {
+        // Real API path — no report returned; optimistically update status
+        onUpdated({ ...report, status: "claimed", claimedBy: responderName });
       }
     });
   }
@@ -42,11 +61,14 @@ export function ClaimPanel({
     if (!next) return;
     setError(null);
     startTransition(async () => {
-      const result = await updateStatusAction(report.id, next, responderName);
+      const token = await resolveToken();
+      const result = await updateStatusAction(report.id, next, responderName, token);
       if (result.status === "error") {
         setError(result.message ?? "Could not update this report.");
       } else if (result.report) {
         onUpdated(result.report);
+      } else {
+        onUpdated({ ...report, status: next });
       }
     });
   }

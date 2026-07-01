@@ -12,13 +12,9 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* This app's UI is built with a fixed light theme (bg-white / text-slate-*
+   classes throughout) — it does not have a dark-mode variant, so we don't
+   flip --background/--foreground based on prefers-color-scheme. */
 body {
   background: var(--background);
   color: var(--foreground);

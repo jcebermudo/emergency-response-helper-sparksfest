@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AuthProvider } from "@/lib/auth-context";
 import { Nav } from "@/components/layout/nav";
 import "./globals.css";
 
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Disaster Response Hub",
-  description: "Real-time disaster resource requests and responder coordination.",
+  title: "L.I.G.T.A.S. — Disaster Response Hub",
+  description: "Logistics Integration & Geo-Targeted Allocation System. Real-time disaster resource coordination for Filipino communities.",
 };
 
 export default function RootLayout({
@@ -29,8 +30,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-slate-50">
-        <Nav />
-        <div className="flex flex-1 flex-col">{children}</div>
+        <AuthProvider>
+          <Nav />
+          <div className="flex flex-1 flex-col">{children}</div>
+        </AuthProvider>
       </body>
     </html>
   );

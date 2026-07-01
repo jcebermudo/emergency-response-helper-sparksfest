@@ -1,9 +1,16 @@
 "use client";
 
+/**
+ * ReportForm — wraps createReportAction and injects the Firebase ID token
+ * as a hidden form field (__idToken) so the Server Action can forward it to
+ * the real POST /api/tasks endpoint when the user is signed in.
+ */
+
 import dynamic from "next/dynamic";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import type { NeedType, UrgencyLevel } from "@/lib/types";
 import { createReportAction, type CreateReportState } from "@/app/report/actions";
+import { useAuth } from "@/lib/auth-context";
 
 const LocationPicker = dynamic(
   () => import("@/components/map/location-picker").then((m) => m.LocationPicker),
@@ -18,6 +25,16 @@ const initialState: CreateReportState = { status: "idle" };
 export function ReportForm() {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [state, formAction, pending] = useActionState(createReportAction, initialState);
+  const { user, getToken } = useAuth();
+  const [idToken, setIdToken] = useState("");
+
+  // Refresh the ID token whenever the signed-in user changes
+  useEffect(() => {
+    if (!user) { setIdToken(""); return; }
+    getToken()
+      .then(setIdToken)
+      .catch(() => setIdToken(""));
+  }, [user, getToken]);
 
   return (
     <form action={formAction} className="grid gap-6 md:grid-cols-2">
@@ -86,8 +103,10 @@ export function ReportForm() {
           />
         </div>
 
+        {/* Hidden fields — location coords + Firebase ID token */}
         <input type="hidden" name="lat" value={location?.lat ?? ""} />
         <input type="hidden" name="lng" value={location?.lng ?? ""} />
+        <input type="hidden" name="__idToken" value={idToken} />
 
         {state.status === "error" && (
           <p className="text-sm text-red-600">{state.message}</p>

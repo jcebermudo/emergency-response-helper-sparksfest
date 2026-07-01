@@ -1,11 +1,62 @@
 /**
- * Shared TypeScript types used by both the Next.js app and Cloud Functions.
+ * Shared TypeScript types — frontend UI types and backend API types in one place.
  * Keep this free of Firebase SDK imports so it works in any context.
  */
 
+// ── Frontend / UI types ────────────────────────────────────────────────────
+
+export type NeedType     = "food" | "medical" | "evacuation" | "other";
+export type UrgencyLevel = "low" | "medium" | "high" | "critical";
+export type ReportStatus = "open" | "claimed" | "in_progress" | "resolved";
+export type UserRole     = "citizen" | "desk_officer" | "responder" | "lgu";
+
+/** A community-submitted resource request pinned on the map. */
+export interface Report {
+  id: string;
+  type: NeedType;
+  location: { lat: number; lng: number };
+  area: string;
+  description: string;
+  urgency: UrgencyLevel;
+  status: ReportStatus;
+  claimedBy?: string;
+  contactInfo?: string;
+  createdAt: string; // ISO string
+  updatedAt: string; // ISO string
+}
+
+export interface NewReportInput {
+  type: NeedType;
+  location: { lat: number; lng: number };
+  area: string;
+  description: string;
+  urgency: UrgencyLevel;
+  contactInfo?: string;
+}
+
+/** A past resolved incident used to drive the predictive-insights heuristic. */
+export interface HistoricalRecord {
+  area: string;
+  lat: number;
+  lng: number;
+  type: NeedType;
+  timestamp: string; // ISO string
+}
+
+export interface PredictedAreaInsight {
+  area: string;
+  lat: number;
+  lng: number;
+  score: number;
+  dominantNeedType: NeedType;
+  sampleSize: number;
+}
+
+// ── Backend / Firestore types (used by API routes & Cloud Functions) ────────
+
+/** TaskType mirrors the real Firestore data model (narrower than NeedType). */
 export type TaskType   = "rescue" | "supply" | "medical";
 export type TaskStatus = "open" | "claimed" | "resolved";
-export type UserRole   = "citizen" | "desk_officer" | "responder" | "lgu";
 
 export interface Task {
   type: TaskType;

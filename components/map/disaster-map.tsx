@@ -2,8 +2,9 @@
 
 /**
  * DisasterMap — Google Maps implementation.
- * Shows one marker per report (colour-coded by urgency) and an optional
- * heatmap layer weighted by urgency.
+ * Shows one marker per report (colour-coded by urgency).
+ * When showHeatmap is true, a translucent circle is drawn behind each marker
+ * sized by urgency — replaces the deprecated HeatmapLayer (removed in v3.65).
  */
 
 import { useEffect, useRef } from "react";
@@ -12,11 +13,13 @@ import type { Report } from "@/lib/types";
 import { urgencyDotColor } from "@/lib/ui/urgency-colors";
 
 const METRO_MANILA_CENTER = { lat: 14.65, lng: 121.05 };
-const URGENCY_WEIGHT: Record<Report["urgency"], number> = {
-  low: 0.2,
-  medium: 0.4,
-  high: 0.7,
-  critical: 1.0,
+
+// Heatmap circle radii in metres, keyed by urgency
+const URGENCY_RADIUS: Record<Report["urgency"], number> = {
+  low:      200,
+  medium:   350,
+  high:     500,
+  critical: 700,
 };
 
 export function DisasterMap({
@@ -31,7 +34,7 @@ export function DisasterMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
-  const heatmapRef = useRef<google.maps.visualization.HeatmapLayer | null>(null);
+  const circlesRef = useRef<google.maps.Circle[]>([]);
 
   // Initialise map once
   useEffect(() => {
@@ -52,28 +55,41 @@ export function DisasterMap({
     return () => { cancelled = true; };
   }, []);
 
-  // Sync markers and heatmap whenever reports change
+  // Sync markers and circles whenever reports change
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // Clear old markers
+    // Clear previous overlays
     markersRef.current.forEach((m) => { m.map = null; });
     markersRef.current = [];
-    heatmapRef.current?.setMap(null);
-    heatmapRef.current = null;
+    circlesRef.current.forEach((c) => c.setMap(null));
+    circlesRef.current = [];
 
     const map = mapRef.current;
 
     Promise.all([
       loadLibrary("marker"),
-      loadLibrary("visualization"),
-    ]).then(([{ AdvancedMarkerElement, PinElement }, { HeatmapLayer }]) => {
+      loadLibrary("maps"),
+    ]).then(([{ AdvancedMarkerElement, PinElement }, { Circle }]) => {
       reports.forEach((report) => {
         const position = { lat: report.location.lat, lng: report.location.lng };
-        const dotColor = urgencyDotColor[report.urgency] ?? "#64748b";
+        const color = urgencyDotColor[report.urgency] ?? "#64748b";
 
+        // Urgency heatmap circle
+        if (showHeatmap) {
+          circlesRef.current.push(new Circle({
+            map,
+            center: position,
+            radius: URGENCY_RADIUS[report.urgency],
+            strokeOpacity: 0,
+            fillColor: color,
+            fillOpacity: 0.18,
+          }));
+        }
+
+        // Pin marker — pass PinElement directly (pin.element is deprecated)
         const pin = new PinElement({
-          background: dotColor,
+          background: color,
           borderColor: "#ffffff",
           glyphColor: "#ffffff",
           scale: report.urgency === "critical" ? 1.3 : 1,
@@ -83,25 +99,13 @@ export function DisasterMap({
           map,
           position,
           title: `${report.type} — ${report.area}`,
-          content: pin.element,
+          content: pin,
         });
 
-        marker.addListener("click", () => onSelectReport?.(report.id));
+        // gmp-click replaces the deprecated 'click' event on AdvancedMarkerElement
+        marker.addEventListener("gmp-click", () => onSelectReport?.(report.id));
         markersRef.current.push(marker);
       });
-
-      if (showHeatmap && reports.length > 0) {
-        const points = reports.map((r) => ({
-          location: new google.maps.LatLng(r.location.lat, r.location.lng),
-          weight: URGENCY_WEIGHT[r.urgency],
-        }));
-        heatmapRef.current = new HeatmapLayer({
-          data: points,
-          map,
-          radius: 40,
-          opacity: 0.6,
-        });
-      }
     });
   }, [reports, showHeatmap, onSelectReport]);
 

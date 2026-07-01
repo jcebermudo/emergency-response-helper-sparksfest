@@ -10,7 +10,15 @@
 
 import { revalidatePath } from "next/cache";
 import { createReport } from "@/lib/data/reports";
-import type { NeedType, UrgencyLevel } from "@/lib/types";
+import type { NeedType, TaskType, UrgencyLevel } from "@/lib/types";
+
+/** Map frontend NeedType values to the API's TaskType vocabulary. */
+const NEED_TO_TASK_TYPE: Record<NeedType, TaskType> = {
+  food:       "supply",
+  medical:    "medical",
+  evacuation: "rescue",
+  other:      "supply",
+};
 
 export interface CreateReportState {
   status: "idle" | "success" | "error";
@@ -48,7 +56,7 @@ export async function createReportAction(
         "Content-Type": "application/json",
         Authorization: `Bearer ${idToken}`,
       },
-      body: JSON.stringify({ type, location: { lat, lng }, description }),
+      body: JSON.stringify({ type: NEED_TO_TASK_TYPE[type], location: { lat, lng }, description }),
     });
 
     if (!res.ok) {

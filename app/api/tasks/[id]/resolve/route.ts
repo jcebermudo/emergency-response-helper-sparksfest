@@ -8,7 +8,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
-import { db, auth } from "@/lib/firebase-admin";
+import { db, auth, isCredentialError } from "@/lib/firebase-admin";
 import { Task } from "@/lib/types";
 
 export async function POST(
@@ -27,7 +27,10 @@ export async function POST(
   try {
     const decoded = await auth.verifyIdToken(token);
     uid = decoded.uid;
-  } catch {
+  } catch (err) {
+    if (isCredentialError(err)) {
+      return NextResponse.json({ error: "Server credentials not configured. Set FIREBASE_SERVICE_ACCOUNT in .env.local." }, { status: 503 });
+    }
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
@@ -72,6 +75,9 @@ export async function POST(
       return NextResponse.json({ error: `Task must be claimed first (current: ${msg.split(":")[1]})` }, { status: 409 });
     if (msg === "FORBIDDEN")
       return NextResponse.json({ error: "Only the assigned responder or LGU can resolve this task" }, { status: 403 });
+    if (isCredentialError(err)) {
+      return NextResponse.json({ error: "Server credentials not configured. Set FIREBASE_SERVICE_ACCOUNT in .env.local." }, { status: 503 });
+    }
     throw err;
   }
 

@@ -1,5 +1,14 @@
-// MOCK: replace with a real BigQuery ML / historical-analytics query later.
-// Keep the return shape of getPredictedInsights stable so callers don't change.
+/**
+ * getPredictedInsights — returns area risk scores for the Insights page.
+ *
+ * When a Firebase/GCP project is configured (NEXT_PUBLIC_FIREBASE_PROJECT_ID
+ * is set at build time), this calls GET /api/insights which runs the live
+ * BigQuery query over the tasks_history table.
+ *
+ * When no project is configured (local demo / CI) it falls back to the
+ * in-memory heuristic over the seeded HistoricalRecord store so the UI still
+ * works without any GCP credentials.
+ */
 
 import { historicalStore } from "@/lib/data/store";
 import type { NeedType, PredictedAreaInsight } from "@/lib/types";
@@ -9,7 +18,25 @@ const RECENCY_WEIGHT = 2;
 const TOTAL_WEIGHT = 0.3;
 const TOP_N = 8;
 
+const HAS_FIREBASE_CONFIG = Boolean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+
 export async function getPredictedInsights(): Promise<PredictedAreaInsight[]> {
+  // ── Live path: BigQuery via API route ──────────────────────────────────────
+  if (HAS_FIREBASE_CONFIG) {
+    try {
+      const res = await fetch(`${BASE_URL}/api/insights`, { cache: "no-store" });
+      if (res.ok) {
+        const data = (await res.json()) as { insights: PredictedAreaInsight[] };
+        // If BQ returned results, use them; otherwise fall through to mock
+        if (data.insights.length > 0) return data.insights;
+      }
+    } catch {
+      // Network error — fall through to mock
+    }
+  }
+
+  // ── Mock fallback: in-memory heuristic ────────────────────────────────────
   const now = Date.now();
 
   const byArea = new Map<

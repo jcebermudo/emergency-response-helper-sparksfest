@@ -30,7 +30,10 @@ export function ReportForm() {
 
   // Refresh the ID token whenever the signed-in user changes
   useEffect(() => {
-    if (!user) { setIdToken(""); return; }
+    if (!user) {
+      Promise.resolve().then(() => setIdToken(""));
+      return;
+    }
     getToken()
       .then(setIdToken)
       .catch(() => setIdToken(""));

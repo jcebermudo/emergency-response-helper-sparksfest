@@ -7,7 +7,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { FieldValue, GeoPoint } from "firebase-admin/firestore";
-import { db, auth } from "@/lib/firebase-admin";
+import { db, auth, isCredentialError } from "@/lib/firebase-admin";
 import { TaskType } from "@/lib/types";
 
 const VALID_TYPES: TaskType[] = ["rescue", "supply", "medical"];
@@ -23,7 +23,10 @@ export async function POST(request: NextRequest) {
   try {
     const decoded = await auth.verifyIdToken(token);
     uid = decoded.uid;
-  } catch {
+  } catch (err) {
+    if (isCredentialError(err)) {
+      return NextResponse.json({ error: "Server credentials not configured. Set FIREBASE_SERVICE_ACCOUNT in .env.local." }, { status: 503 });
+    }
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
@@ -56,7 +59,9 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Write ────────────────────────────────────────────────────────────────
-  const ref = await db.collection("tasks").add({
+  let ref: FirebaseFirestore.DocumentReference;
+  try {
+  ref = await db.collection("tasks").add({
     type,
     status: "open",
     location: new GeoPoint(location.lat, location.lng),
@@ -66,6 +71,12 @@ export async function POST(request: NextRequest) {
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
+  } catch (err) {
+    if (isCredentialError(err)) {
+      return NextResponse.json({ error: "Server credentials not configured. Set FIREBASE_SERVICE_ACCOUNT in .env.local." }, { status: 503 });
+    }
+    throw err;
+  }
 
   return NextResponse.json({ success: true, taskId: ref.id }, { status: 201 });
 }

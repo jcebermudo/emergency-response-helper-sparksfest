@@ -6,7 +6,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
-import { db, auth } from "@/lib/firebase-admin";
+import { db, auth, isCredentialError } from "@/lib/firebase-admin";
 import { Task } from "@/lib/types";
 
 export async function POST(
@@ -25,7 +25,10 @@ export async function POST(
   try {
     const decoded = await auth.verifyIdToken(token);
     uid = decoded.uid;
-  } catch {
+  } catch (err) {
+    if (isCredentialError(err)) {
+      return NextResponse.json({ error: "Server credentials not configured. Set FIREBASE_SERVICE_ACCOUNT in .env.local." }, { status: 503 });
+    }
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
@@ -70,6 +73,9 @@ export async function POST(
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     if (msg.startsWith("ALREADY_"))
       return NextResponse.json({ error: `Task is already ${msg.replace("ALREADY_", "").toLowerCase()}` }, { status: 409 });
+    if (isCredentialError(err)) {
+      return NextResponse.json({ error: "Server credentials not configured. Set FIREBASE_SERVICE_ACCOUNT in .env.local." }, { status: 503 });
+    }
     throw err;
   }
 

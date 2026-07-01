@@ -1,0 +1,51 @@
+[
+  {
+    "name": "advisory_id",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "source",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "PAGASA | NDRRMC"
+  },
+  {
+    "name": "type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "flood | typhoon | earthquake | other"
+  },
+  {
+    "name": "severity",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "area",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Affected province / city"
+  },
+  {
+    "name": "headline",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "issued_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "fetched_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "raw_json",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Full raw payload for downstream analysis"
+  }
+]

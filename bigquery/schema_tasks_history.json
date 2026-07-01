@@ -1,0 +1,57 @@
+[
+  {
+    "name": "task_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Firestore document ID"
+  },
+  {
+    "name": "type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "rescue | supply | medical"
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "open | claimed | resolved"
+  },
+  {
+    "name": "latitude",
+    "type": "FLOAT64",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "longitude",
+    "type": "FLOAT64",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "reported_by",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "UID of reporter"
+  },
+  {
+    "name": "claimed_by",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "UID of responder who claimed the task"
+  },
+  {
+    "name": "description",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED"
+  }
+]

@@ -1,0 +1,77 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isCitizen()     { return role() == 'citizen'; }
+    function isDeskOfficer() { return role() == 'desk_officer'; }
+    function isResponder()   { return role() == 'responder'; }
+    function isLGU()         { return role() == 'lgu'; }
+    function isOperator()    { return isDeskOfficer() || isLGU(); }
+    function isField()       { return isResponder() || isLGU(); }
+
+    // ── /users/{uid} ─────────────────────────────────────────────────────────
+    // Users can read/write their own profile only.
+    // Admins (LGU) can read all profiles.
+    match /users/{uid} {
+      allow read:   if isSignedIn() && (request.auth.uid == uid || isLGU());
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow update: if isSignedIn() && request.auth.uid == uid;
+      allow delete: if false; // hard-delete not allowed; deactivate via field
+    }
+
+    // ── /tasks/{taskId} ──────────────────────────────────────────────────────
+    match /tasks/{taskId} {
+      // Anyone signed-in can read tasks (needed for map view).
+      allow read: if isSignedIn();
+
+      // Citizens and desk officers can create new tasks.
+      allow create: if isSignedIn()
+        && (isCitizen() || isOperator())
+        && request.resource.data.status == 'open'
+        && request.resource.data.claimedBy == null
+        && request.resource.data.reportedBy == request.auth.uid
+        && request.resource.data.keys().hasAll([
+             'type', 'status', 'location', 'reportedBy',
+             'claimedBy', 'description', 'createdAt', 'updatedAt'
+           ]);
+
+      // Claiming a task: only responders/LGU, task must be open, they set themselves.
+      // NOTE: the actual claim goes through the claimTask Cloud Function (transaction-safe).
+      // This rule is a belt-and-suspenders guard only.
+      allow update: if isSignedIn() && (
+        // Responders/LGU can claim or resolve
+        (isField()
+          && resource.data.status == 'open'
+          && request.resource.data.status == 'claimed'
+          && request.resource.data.claimedBy == request.auth.uid)
+        ||
+        (isField()
+          && resource.data.status == 'claimed'
+          && resource.data.claimedBy == request.auth.uid
+          && request.resource.data.status == 'resolved')
+        ||
+        // Desk officers/LGU can annotate or reassign
+        (isOperator())
+      );
+
+      allow delete: if false;
+    }
+
+    // ── /audit/{logId} ───────────────────────────────────────────────────────
+    // Append-only audit trail written by Cloud Functions only (no client writes).
+    match /audit/{logId} {
+      allow read:   if isSignedIn() && isOperator();
+      allow write:  if false; // only Cloud Functions service account may write
+    }
+  }
+}

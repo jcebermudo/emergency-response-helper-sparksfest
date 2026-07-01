@@ -1,52 +1,29 @@
-export type NeedType = "food" | "medical" | "evacuation" | "other";
+/**
+ * Shared TypeScript types used by both the Next.js app and Cloud Functions.
+ * Keep this free of Firebase SDK imports so it works in any context.
+ */
 
-export type UrgencyLevel = "low" | "medium" | "high" | "critical";
+export type TaskType   = "rescue" | "supply" | "medical";
+export type TaskStatus = "open" | "claimed" | "resolved";
+export type UserRole   = "citizen" | "desk_officer" | "responder" | "lgu";
 
-export type ReportStatus = "open" | "claimed" | "in_progress" | "resolved";
-
-export interface Report {
-  id: string;
-  type: NeedType;
-  location: { lat: number; lng: number };
-  area: string;
+export interface Task {
+  type: TaskType;
+  status: TaskStatus;
+  /** firebase-admin GeoPoint on server; firebase/firestore GeoPoint on client */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  location: any;
+  reportedBy: string;
+  claimedBy: string | null;
   description: string;
-  urgency: UrgencyLevel;
-  status: ReportStatus;
-  contactInfo?: string;
-  claimedBy?: string;
-  createdAt: string;
-  updatedAt: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createdAt: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  updatedAt: any;
+  resolutionNotes?: string;
 }
 
-export interface NewReportInput {
-  type: NeedType;
-  location: { lat: number; lng: number };
-  area: string;
-  description: string;
-  urgency: UrgencyLevel;
-  contactInfo?: string;
-}
-
-// Responder identity is a plain typed name cached in localStorage — deliberate
-// prototype simplification, not a security boundary. Anyone can claim as anyone.
-export interface Responder {
-  id: string;
-  name: string;
-}
-
-export interface HistoricalRecord {
-  area: string;
-  lat: number;
-  lng: number;
-  type: NeedType;
-  timestamp: string;
-}
-
-export interface PredictedAreaInsight {
-  area: string;
-  lat: number;
-  lng: number;
-  score: number;
-  dominantNeedType: NeedType;
-  sampleSize: number;
+export interface User {
+  role: UserRole;
+  displayName: string;
 }

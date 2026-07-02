@@ -9,8 +9,9 @@
  */
 
 import "leaflet/dist/leaflet.css";
+import { useEffect } from "react";
 import L from "leaflet";
-import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 
 const METRO_MANILA_CENTER: [number, number] = [14.65, 121.05];
 
@@ -33,12 +34,28 @@ function ClickHandler({ onPick }: { onPick: (lat: number, lng: number) => void }
   return null;
 }
 
+// MapContainer's `center` prop only applies on initial mount — react-leaflet
+// doesn't re-pan on prop changes, so an externally-picked point (e.g. from
+// the area autocomplete, as opposed to a direct map click) needs an
+// explicit flyTo to bring the map to it.
+function RecenterOnFocus({ focus }: { focus: { lat: number; lng: number } | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (focus) map.flyTo([focus.lat, focus.lng], Math.max(map.getZoom(), 15));
+  }, [focus, map]);
+  return null;
+}
+
 export function LocationPicker({
   value,
   onChange,
+  focus,
 }: {
   value: { lat: number; lng: number } | null;
   onChange: (lat: number, lng: number) => void;
+  /** Set (e.g. from an autocomplete pick) to pan/zoom the map there — distinct
+   *  from `value` so a plain map click doesn't also trigger a fly-to. */
+  focus?: { lat: number; lng: number } | null;
 }) {
   return (
     <MapContainer
@@ -52,6 +69,7 @@ export function LocationPicker({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <ClickHandler onPick={onChange} />
+      <RecenterOnFocus focus={focus ?? null} />
       {value && <Marker position={[value.lat, value.lng]} icon={pinIcon} />}
     </MapContainer>
   );

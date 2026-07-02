@@ -33,6 +33,7 @@ export function ReportForm() {
   const [type, setType] = useState<NeedType>(NEED_TYPES[0]);
   const [urgency, setUrgency] = useState<UrgencyLevel>(URGENCY_LEVELS[0]);
   const [area, setArea] = useState("");
+  const [focus, setFocus] = useState<{ lat: number; lng: number } | null>(null);
 
   // Refresh the ID token whenever the signed-in user changes
   // (disabled in DEMO_MODE — always submits via the mock store, see lib/demo-mode.ts)
@@ -76,7 +77,10 @@ export function ReportForm() {
           <AreaAutocomplete
             value={area}
             onChange={setArea}
-            onSelectLocation={(lat, lng) => setLocation({ lat, lng })}
+            onSelectLocation={(lat, lng) => {
+              setLocation({ lat, lng });
+              setFocus({ lat, lng });
+            }}
           />
         </div>
 
@@ -131,6 +135,7 @@ export function ReportForm() {
         <LocationPicker
           value={location}
           onChange={(lat, lng) => setLocation({ lat, lng })}
+          focus={focus}
         />
       </div>
     </form>

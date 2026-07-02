@@ -28,9 +28,13 @@ export function Nav() {
             Insights
           </Link>
 
-          <span className="rounded-md border border-slate-300 px-3 py-1 text-xs">
-            Signed in as <span className="font-semibold text-slate-900">{name}</span>
-          </span>
+          {/* Blank (no fake login) outside dev until a responder name is set —
+              see lib/demo-user.ts */}
+          {name.trim() && (
+            <span className="rounded-md border border-slate-300 px-3 py-1 text-xs">
+              Signed in as <span className="font-semibold text-slate-900">{name}</span>
+            </span>
+          )}
         </div>
       </div>
     </nav>

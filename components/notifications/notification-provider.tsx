@@ -6,6 +6,9 @@
  * fake-login port runs as, see lib/demo-user.ts) and pops a toast whenever
  * someone else's report shows up. Mounted once in the root layout so it
  * works from any page, not just the dashboard.
+ *
+ * Dev-only — pairs with the fake port-based login (lib/demo-user.ts) and
+ * the file-backed store, neither of which mean anything in production.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -16,6 +19,7 @@ import { useResponderName } from "@/lib/use-responder-name";
 import { NotificationToast } from "@/components/notifications/notification-toast";
 
 const POLL_INTERVAL_MS = 6000;
+const IS_DEV = process.env.NODE_ENV === "development";
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { name } = useResponderName();
@@ -26,6 +30,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const seenIds = useRef<Set<string> | null>(null);
 
   useEffect(() => {
+    if (!IS_DEV) return;
     let cancelled = false;
 
     async function poll() {

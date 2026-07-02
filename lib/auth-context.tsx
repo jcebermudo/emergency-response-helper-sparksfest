@@ -32,6 +32,7 @@ import {
 } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { DEMO_MODE } from "@/lib/demo-mode";
 import type { UserRole } from "@/lib/types";
 
 interface AuthContextValue {
@@ -82,14 +83,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Create the users/{uid} document that API routes check for roles.
       // Only write if it doesn't already exist (safety guard for re-registration).
-      const userRef = doc(db, "users", uid);
-      const snap = await getDoc(userRef);
-      if (!snap.exists()) {
-        await setDoc(userRef, {
-          displayName,
-          role,
-          createdAt: serverTimestamp(),
-        });
+      // Skipped in DEMO_MODE (dev) — Auth sign-up itself still works, but
+      // dev shouldn't write to a real Firebase project. See lib/demo-mode.ts.
+      if (!DEMO_MODE) {
+        const userRef = doc(db, "users", uid);
+        const snap = await getDoc(userRef);
+        if (!snap.exists()) {
+          await setDoc(userRef, {
+            displayName,
+            role,
+            createdAt: serverTimestamp(),
+          });
+        }
       }
     },
     []

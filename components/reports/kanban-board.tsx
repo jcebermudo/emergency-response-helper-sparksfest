@@ -48,7 +48,7 @@ function KanbanCard({
   return (
     <button
       onClick={() => onManage(report.id)}
-      className="w-full rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm hover:border-slate-400 hover:shadow transition-shadow"
+      className="flex h-[172px] w-full flex-col rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm hover:border-slate-400 hover:shadow transition-shadow"
     >
       <div className="flex items-start justify-between gap-2">
         <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
@@ -64,7 +64,7 @@ function KanbanCard({
         {report.area}
       </p>
       <p className="mt-1 line-clamp-2 text-xs text-slate-500">{report.description}</p>
-      <div className="mt-2 flex items-center gap-1.5">
+      <div className="mt-auto flex items-center gap-1.5">
         <span className={`inline-block h-2 w-2 rounded-full ${STATUS_DOT[report.status]}`} />
         <span className="text-xs text-slate-400 capitalize">{report.status.replace("_", " ")}</span>
         {report.claimedBy && (
@@ -85,20 +85,20 @@ export function KanbanBoard({
   onManage: (reportId: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 h-full">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       {COLUMNS.map((col) => {
         const cards = reports.filter((r) =>
           (col.statuses as ReportStatus[]).includes(r.status)
         );
         return (
-          <div key={col.label} className="flex flex-col min-h-0">
-            <div className={`mb-2 flex items-center justify-between rounded-md border px-3 py-2 ${col.color}`}>
+          <div key={col.label} className={`flex h-full flex-col rounded-lg border p-3 ${col.color}`}>
+            <div className="mb-3 flex items-center justify-between">
               <span className="text-sm font-semibold text-slate-700">{col.label}</span>
               <span className="rounded-full bg-white border border-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600">
                 {cards.length}
               </span>
             </div>
-            <div className="flex-1 overflow-y-auto space-y-2 pr-0.5">
+            <div className="flex-1 space-y-2">
               {cards.length === 0 ? (
                 <p className="text-xs text-slate-400 text-center mt-6">No tasks</p>
               ) : (

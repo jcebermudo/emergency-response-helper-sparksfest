@@ -108,9 +108,9 @@ export function DashboardClient({ initialReports }: { initialReports: Report[] }
   }
 
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className="flex flex-col gap-4">
       {/* Top controls */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-end gap-3">
         <div className="flex-1 min-w-[160px]">
           <label className="block text-xs font-medium text-slate-500">Your name (responder)</label>
           <input
@@ -118,7 +118,7 @@ export function DashboardClient({ initialReports }: { initialReports: Report[] }
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Responder Team 3"
-            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+            className="mt-1 h-9 w-full rounded-md border border-slate-300 px-3 text-sm"
           />
         </div>
 
@@ -130,16 +130,16 @@ export function DashboardClient({ initialReports }: { initialReports: Report[] }
         />
 
         {/* View toggle */}
-        <div className="flex rounded-md border border-slate-300 overflow-hidden text-sm">
+        <div className="flex h-9 rounded-md border border-slate-300 overflow-hidden text-sm">
           <button
             onClick={() => setView("kanban")}
-            className={`px-3 py-1.5 font-medium ${view === "kanban" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+            className={`px-3 font-medium ${view === "kanban" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
           >
             Board
           </button>
           <button
             onClick={() => setView("list")}
-            className={`px-3 py-1.5 font-medium ${view === "list" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+            className={`px-3 font-medium ${view === "list" ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
           >
             List
           </button>
@@ -147,18 +147,16 @@ export function DashboardClient({ initialReports }: { initialReports: Report[] }
       </div>
 
       {/* Map + board/list */}
-      <div className="grid flex-1 min-h-0 grid-cols-1 gap-4 lg:grid-cols-[1fr_480px]">
-        <div className="h-[360px] overflow-hidden rounded-lg border border-slate-300 lg:h-full">
+      <div className="flex flex-col gap-4">
+        <div className="h-[400px] overflow-hidden rounded-lg border border-slate-300">
           <DisasterMap reports={filtered} onSelectReport={setSelectedReportId} />
         </div>
 
-        <div className="flex flex-col min-h-0 overflow-hidden">
+        <div className="flex flex-col">
           {view === "kanban" ? (
             <KanbanBoard reports={filtered} onManage={setSelectedReportId} />
           ) : (
-            <div className="flex-1 overflow-y-auto">
-              <ReportList reports={filtered} onManage={setSelectedReportId} />
-            </div>
+            <ReportList reports={filtered} onManage={setSelectedReportId} />
           )}
         </div>
       </div>

@@ -14,6 +14,7 @@ import { StatusPill, UrgencyBadge } from "@/components/layout/status-badge";
 import { needTypeLabels } from "@/lib/ui/urgency-colors";
 import { claimReportAction, updateStatusAction } from "@/app/dashboard/actions";
 import { useAuth } from "@/lib/auth-context";
+import { DEMO_MODE } from "@/lib/demo-mode";
 
 const NEXT_STATUS: Partial<Record<ReportStatus, ReportStatus>> = {
   claimed: "in_progress",
@@ -36,7 +37,8 @@ export function ClaimPanel({
   const { user, getToken } = useAuth();
 
   async function resolveToken(): Promise<string | undefined> {
-    if (!user) return undefined;
+    // Disabled in DEMO_MODE — always fall back to the mock store (see lib/demo-mode.ts)
+    if (DEMO_MODE || !user) return undefined;
     try { return await getToken(); } catch { return undefined; }
   }
 

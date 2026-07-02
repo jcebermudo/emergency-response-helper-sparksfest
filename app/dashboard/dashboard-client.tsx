@@ -26,6 +26,7 @@ import { useResponderName } from "@/lib/use-responder-name";
 import { useAuth } from "@/lib/auth-context";
 import { refetchReportsAction } from "@/app/dashboard/actions";
 import { db } from "@/lib/firebase";
+import { DEMO_MODE } from "@/lib/demo-mode";
 
 const DisasterMap = dynamic(
   () => import("@/components/map/disaster-map").then((m) => m.DisasterMap),
@@ -74,7 +75,8 @@ export function DashboardClient({ initialReports }: { initialReports: Report[] }
 
   useEffect(() => {
     // Real-time path: Firestore onSnapshot when signed in + Firebase configured
-    if (HAS_FIREBASE_CONFIG && user) {
+    // (disabled in DEMO_MODE — see lib/demo-mode.ts)
+    if (!DEMO_MODE && HAS_FIREBASE_CONFIG && user) {
       const q = query(collection(db, "tasks"), orderBy("createdAt", "desc"));
       const unsubscribe = onSnapshot(q, (snap) => {
         const updated: Report[] = snap.docs.map((doc) =>

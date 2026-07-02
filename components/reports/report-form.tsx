@@ -11,6 +11,7 @@ import { useActionState, useEffect, useState } from "react";
 import type { NeedType, UrgencyLevel } from "@/lib/types";
 import { createReportAction, type CreateReportState } from "@/app/report/actions";
 import { useAuth } from "@/lib/auth-context";
+import { DEMO_MODE } from "@/lib/demo-mode";
 import { Select } from "@/components/ui/select";
 
 const LocationPicker = dynamic(
@@ -32,8 +33,9 @@ export function ReportForm() {
   const [urgency, setUrgency] = useState<UrgencyLevel>(URGENCY_LEVELS[0]);
 
   // Refresh the ID token whenever the signed-in user changes
+  // (disabled in DEMO_MODE — always submits via the mock store, see lib/demo-mode.ts)
   useEffect(() => {
-    if (!user) {
+    if (DEMO_MODE || !user) {
       Promise.resolve().then(() => setIdToken(""));
       return;
     }

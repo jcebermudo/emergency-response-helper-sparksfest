@@ -11,6 +11,7 @@ import { useActionState, useEffect, useState } from "react";
 import type { NeedType, UrgencyLevel } from "@/lib/types";
 import { createReportAction, type CreateReportState } from "@/app/report/actions";
 import { useAuth } from "@/lib/auth-context";
+import { Select } from "@/components/ui/select";
 
 const LocationPicker = dynamic(
   () => import("@/components/map/location-picker").then((m) => m.LocationPicker),
@@ -27,6 +28,8 @@ export function ReportForm() {
   const [state, formAction, pending] = useActionState(createReportAction, initialState);
   const { user, getToken } = useAuth();
   const [idToken, setIdToken] = useState("");
+  const [type, setType] = useState<NeedType>(NEED_TYPES[0]);
+  const [urgency, setUrgency] = useState<UrgencyLevel>(URGENCY_LEVELS[0]);
 
   // Refresh the ID token whenever the signed-in user changes
   useEffect(() => {
@@ -44,32 +47,24 @@ export function ReportForm() {
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-700">Need type</label>
-          <select
-            name="type"
-            required
-            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          >
-            {NEED_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
+          <input type="hidden" name="type" value={type} />
+          <Select
+            value={type}
+            onChange={(v) => setType(v as NeedType)}
+            className="mt-1"
+            options={NEED_TYPES.map((t) => ({ value: t, label: t }))}
+          />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-slate-700">Urgency</label>
-          <select
-            name="urgency"
-            required
-            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          >
-            {URGENCY_LEVELS.map((level) => (
-              <option key={level} value={level}>
-                {level}
-              </option>
-            ))}
-          </select>
+          <input type="hidden" name="urgency" value={urgency} />
+          <Select
+            value={urgency}
+            onChange={(v) => setUrgency(v as UrgencyLevel)}
+            className="mt-1"
+            options={URGENCY_LEVELS.map((l) => ({ value: l, label: l }))}
+          />
         </div>
 
         <div>

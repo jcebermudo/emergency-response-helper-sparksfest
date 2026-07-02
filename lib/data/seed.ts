@@ -5,21 +5,11 @@ import type {
   ReportStatus,
   UrgencyLevel,
 } from "@/lib/types";
+import { METRO_MANILA_LOCATIONS } from "@/lib/data/locations";
 
-// Real, recognizable flood-prone Metro Manila-area barangays/localities with
-// approximate coordinates, used to make demo data look realistic.
-const AREAS = [
-  { area: "Barangka, Marikina City", lat: 14.6297, lng: 121.0929 },
-  { area: "Malanday, Marikina City", lat: 14.6423, lng: 121.1027 },
-  { area: "Cainta, Rizal", lat: 14.5786, lng: 121.1222 },
-  { area: "Rodriguez (Montalban), Rizal", lat: 14.7256, lng: 121.1236 },
-  { area: "Rosario, Pasig City", lat: 14.5764, lng: 121.0851 },
-  { area: "Manggahan, Pasig City", lat: 14.5764, lng: 121.1 },
-  { area: "Payatas, Quezon City", lat: 14.7169, lng: 121.1122 },
-  { area: "Batasan Hills, Quezon City", lat: 14.6907, lng: 121.1044 },
-  { area: "Tanza, Navotas City", lat: 14.6667, lng: 120.9437 },
-  { area: "Tugatog, Malabon City", lat: 14.6667, lng: 120.9578 },
-];
+// First 10 shared locations, used to make demo data look realistic.
+// AREA_HISTORY_WEIGHTS below is index-aligned to this slice.
+const AREAS = METRO_MANILA_LOCATIONS.slice(0, 10);
 
 const NEED_TYPES: NeedType[] = ["food", "medical", "evacuation", "other"];
 const STATUSES: ReportStatus[] = ["open", "open", "open", "claimed", "in_progress", "resolved"];

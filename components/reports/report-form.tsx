@@ -13,6 +13,7 @@ import { createReportAction, type CreateReportState } from "@/app/report/actions
 import { useAuth } from "@/lib/auth-context";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { Select } from "@/components/ui/select";
+import { AreaAutocomplete } from "@/components/reports/area-autocomplete";
 
 const LocationPicker = dynamic(
   () => import("@/components/map/location-picker").then((m) => m.LocationPicker),
@@ -31,6 +32,7 @@ export function ReportForm() {
   const [idToken, setIdToken] = useState("");
   const [type, setType] = useState<NeedType>(NEED_TYPES[0]);
   const [urgency, setUrgency] = useState<UrgencyLevel>(URGENCY_LEVELS[0]);
+  const [area, setArea] = useState("");
 
   // Refresh the ID token whenever the signed-in user changes
   // (disabled in DEMO_MODE — always submits via the mock store, see lib/demo-mode.ts)
@@ -71,12 +73,10 @@ export function ReportForm() {
 
         <div>
           <label className="block text-sm font-medium text-slate-700">Area / barangay</label>
-          <input
-            type="text"
-            name="area"
-            required
-            placeholder="e.g. Barangka, Marikina City"
-            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          <AreaAutocomplete
+            value={area}
+            onChange={setArea}
+            onSelectLocation={(lat, lng) => setLocation({ lat, lng })}
           />
         </div>
 

@@ -20,11 +20,13 @@ const METRO_MANILA_CENTER: [number, number] = [14.65, 121.05];
 export function DisasterMap({
   reports,
   showHeatmap = true,
-  onSelectReport,
+  responderName,
+  onUpdated,
 }: {
   reports: Report[];
   showHeatmap?: boolean;
-  onSelectReport?: (reportId: string) => void;
+  responderName: string;
+  onUpdated: (report: Report) => void;
 }) {
   return (
     <MapContainer
@@ -39,7 +41,12 @@ export function DisasterMap({
       />
       {showHeatmap && <HeatmapLayer reports={reports} />}
       {reports.map((report) => (
-        <ReportMarker key={report.id} report={report} onSelect={onSelectReport} />
+        <ReportMarker
+          key={report.id}
+          report={report}
+          responderName={responderName}
+          onUpdated={onUpdated}
+        />
       ))}
     </MapContainer>
   );

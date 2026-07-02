@@ -1,25 +1,17 @@
 "use client";
 
 /**
- * ClaimPanel — modal for managing a single report.
+ * ClaimPanel — full-screen modal for managing a single report.
  *
- * Passes the Firebase ID token to claimReportAction / updateStatusAction so
- * those actions can call the real Firestore API routes when a user is signed in.
- * Falls back to the mock store path when no token is available.
+ * One of two ways to claim/advance a report — the other is the popup
+ * anchored to its pin on the dashboard map (components/map/report-marker.tsx).
+ * Both share their claim/advance logic via lib/use-report-actions.
  */
 
-import { useState, useTransition } from "react";
-import type { Report, ReportStatus } from "@/lib/types";
+import type { Report } from "@/lib/types";
 import { StatusPill, UrgencyBadge } from "@/components/layout/status-badge";
 import { needTypeLabels } from "@/lib/ui/urgency-colors";
-import { claimReportAction, updateStatusAction } from "@/app/dashboard/actions";
-import { useAuth } from "@/lib/auth-context";
-import { DEMO_MODE } from "@/lib/demo-mode";
-
-const NEXT_STATUS: Partial<Record<ReportStatus, ReportStatus>> = {
-  claimed: "in_progress",
-  in_progress: "resolved",
-};
+import { useReportActions } from "@/lib/use-report-actions";
 
 export function ClaimPanel({
   report,
@@ -32,50 +24,11 @@ export function ClaimPanel({
   onClose: () => void;
   onUpdated: (report: Report) => void;
 }) {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const { user, getToken } = useAuth();
-
-  async function resolveToken(): Promise<string | undefined> {
-    // Disabled in DEMO_MODE — always fall back to the mock store (see lib/demo-mode.ts)
-    if (DEMO_MODE || !user) return undefined;
-    try { return await getToken(); } catch { return undefined; }
-  }
-
-  function handleClaim() {
-    setError(null);
-    startTransition(async () => {
-      const token = await resolveToken();
-      const result = await claimReportAction(report.id, responderName, token);
-      if (result.status === "error") {
-        setError(result.message ?? "Could not claim this report.");
-      } else if (result.report) {
-        onUpdated(result.report);
-      } else {
-        // Real API path — no report returned; optimistically update status
-        onUpdated({ ...report, status: "claimed", claimedBy: responderName });
-      }
-    });
-  }
-
-  function handleAdvance() {
-    const next = NEXT_STATUS[report.status];
-    if (!next) return;
-    setError(null);
-    startTransition(async () => {
-      const token = await resolveToken();
-      const result = await updateStatusAction(report.id, next, responderName, token);
-      if (result.status === "error") {
-        setError(result.message ?? "Could not update this report.");
-      } else if (result.report) {
-        onUpdated(result.report);
-      } else {
-        onUpdated({ ...report, status: next });
-      }
-    });
-  }
-
-  const next = NEXT_STATUS[report.status];
+  const { pending, error, next, handleClaim, handleAdvance } = useReportActions(
+    report,
+    responderName,
+    onUpdated
+  );
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 p-4">

@@ -1,9 +1,12 @@
 "use client";
 
+import { useRef } from "react";
 import L from "leaflet";
 import { Marker, Popup } from "react-leaflet";
 import type { Report } from "@/lib/types";
-import { needTypeLabels, statusLabels, urgencyDotColor } from "@/lib/ui/urgency-colors";
+import { StatusPill, UrgencyBadge } from "@/components/layout/status-badge";
+import { needTypeLabels, urgencyDotColor } from "@/lib/ui/urgency-colors";
+import { useReportActions } from "@/lib/use-report-actions";
 
 // Inline SVG icons instead of Leaflet's default image-based markers — sidesteps
 // the well-known bundler broken-icon-path issue with Leaflet's default assets.
@@ -21,29 +24,85 @@ function svgIcon(color: string) {
   });
 }
 
+/**
+ * ReportMarker — pin on the dashboard map. Clicking it opens Leaflet's
+ * bound popup (its default behavior, no extra handler needed) with the
+ * report's info and a claim/advance button right there — one of two ways
+ * to claim a report, the other being the centered ClaimPanel modal opened
+ * from a Kanban/list card. Both share their logic via lib/use-report-actions.
+ */
 export function ReportMarker({
   report,
-  onSelect,
+  responderName,
+  onUpdated,
 }: {
   report: Report;
-  onSelect?: (reportId: string) => void;
+  responderName: string;
+  onUpdated: (report: Report) => void;
 }) {
   const icon = svgIcon(urgencyDotColor[report.urgency]);
+  const markerRef = useRef<L.Marker>(null);
+  const { pending, error, next, handleClaim, handleAdvance } = useReportActions(
+    report,
+    responderName,
+    onUpdated
+  );
 
   return (
-    <Marker
-      position={[report.location.lat, report.location.lng]}
-      icon={icon}
-      eventHandlers={onSelect ? { click: () => onSelect(report.id) } : undefined}
-    >
-      <Popup>
-        <div className="space-y-1 text-sm">
-          <p className="font-semibold">{needTypeLabels[report.type]}</p>
-          <p className="text-slate-600">{report.area}</p>
-          <p>{report.description}</p>
-          <p className="text-xs text-slate-500">
-            Urgency: {report.urgency} &middot; Status: {statusLabels[report.status]}
+    <Marker ref={markerRef} position={[report.location.lat, report.location.lng]} icon={icon}>
+      <Popup minWidth={240}>
+        <div className="space-y-2 text-sm">
+          <p className="font-semibold text-slate-900">
+            {needTypeLabels[report.type]} &mdash; {report.area}
           </p>
+
+          <div className="flex gap-1.5">
+            <UrgencyBadge urgency={report.urgency} />
+            <StatusPill status={report.status} />
+          </div>
+
+          <p className="text-slate-700">{report.description}</p>
+          {report.claimedBy && (
+            <p className="text-xs text-slate-500">Claimed by: {report.claimedBy}</p>
+          )}
+
+          {!responderName.trim() && (
+            <p className="text-xs text-amber-600">
+              Enter your responder name above before claiming.
+            </p>
+          )}
+
+          {error && <p className="text-xs text-red-600">{error}</p>}
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            {report.status === "open" && (
+              <button
+                type="button"
+                onClick={handleClaim}
+                disabled={pending || !responderName.trim()}
+                className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+              >
+                {pending ? "Claiming..." : "Claim this report"}
+              </button>
+            )}
+            {next && (
+              <button
+                type="button"
+                onClick={handleAdvance}
+                disabled={pending || !responderName.trim()}
+                className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+              >
+                {pending ? "Updating..." : `Mark as ${next.replace("_", " ")}`}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => markerRef.current?.closePopup()}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </Popup>
     </Marker>

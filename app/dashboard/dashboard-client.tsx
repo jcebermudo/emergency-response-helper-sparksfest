@@ -125,7 +125,7 @@ export function DashboardClient({ initialReports }: { initialReports: Report[] }
 
       {/* Map */}
       <div className="h-[400px] overflow-hidden rounded-lg border border-slate-300">
-        <DisasterMap reports={filtered} onSelectReport={setSelectedReportId} />
+        <DisasterMap reports={filtered} responderName={name} onUpdated={handleUpdated} />
       </div>
 
       {/* Filters + view toggle */}

@@ -110,18 +110,24 @@ export function DashboardClient({ initialReports }: { initialReports: Report[] }
   return (
     <div className="flex flex-col gap-4">
       {/* Top controls */}
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex-1 min-w-[160px]">
-          <label className="block text-xs font-medium text-slate-500">Your name (responder)</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Responder Team 3"
-            className="mt-1 h-9 w-full rounded-md border border-slate-300 px-3 text-sm"
-          />
-        </div>
+      <div className="flex-1 min-w-[160px]">
+        <label className="block text-xs font-medium text-slate-500">Your name (responder)</label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Responder Team 3"
+          className="mt-1 h-9 w-full rounded-md border border-slate-300 px-3 text-sm"
+        />
+      </div>
 
+      {/* Map */}
+      <div className="h-[400px] overflow-hidden rounded-lg border border-slate-300">
+        <DisasterMap reports={filtered} onSelectReport={setSelectedReportId} />
+      </div>
+
+      {/* Filters + view toggle */}
+      <div className="flex flex-wrap items-center gap-3">
         <ReportFilters
           type={type}
           status={status}
@@ -146,19 +152,13 @@ export function DashboardClient({ initialReports }: { initialReports: Report[] }
         </div>
       </div>
 
-      {/* Map + board/list */}
-      <div className="flex flex-col gap-4">
-        <div className="h-[400px] overflow-hidden rounded-lg border border-slate-300">
-          <DisasterMap reports={filtered} onSelectReport={setSelectedReportId} />
-        </div>
-
-        <div className="flex flex-col">
-          {view === "kanban" ? (
-            <KanbanBoard reports={filtered} onManage={setSelectedReportId} />
-          ) : (
-            <ReportList reports={filtered} onManage={setSelectedReportId} />
-          )}
-        </div>
+      {/* Board/list */}
+      <div className="flex flex-col">
+        {view === "kanban" ? (
+          <KanbanBoard reports={filtered} onManage={setSelectedReportId} />
+        ) : (
+          <ReportList reports={filtered} onManage={setSelectedReportId} />
+        )}
       </div>
 
       {selectedReport && (

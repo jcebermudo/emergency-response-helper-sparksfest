@@ -22,29 +22,91 @@ const AREAS = [
 ];
 
 const NEED_TYPES: NeedType[] = ["food", "medical", "evacuation", "other"];
-const URGENCY_LEVELS: UrgencyLevel[] = ["low", "medium", "high", "critical"];
 const STATUSES: ReportStatus[] = ["open", "open", "open", "claimed", "in_progress", "resolved"];
 
-const DESCRIPTIONS: Record<NeedType, string[]> = {
+// Each description is paired with the urgency it actually implies, so a
+// life-threatening report can never be mislabeled "low" (and a minor
+// inconvenience can't be mislabeled "critical").
+const SCENARIOS: Record<NeedType, { description: string; urgency: UrgencyLevel }[]> = {
   food: [
-    "Family of 6 stranded on second floor, no food for 2 days.",
-    "Community kitchen ran out of rice and canned goods.",
-    "Elderly couple needs food delivery, roads impassable.",
+    {
+      description: "Family of 6 has had no food or clean water for 3 days, youngest child is an infant and getting dehydrated.",
+      urgency: "critical",
+    },
+    {
+      description: "Elderly couple with no mobility aid trapped in a flooded home, out of food, water rising toward the kitchen counter.",
+      urgency: "high",
+    },
+    {
+      description: "Community kitchen ran out of rice and canned goods, about 40 people still need dinner tonight.",
+      urgency: "medium",
+    },
+    {
+      description: "Household is low on snacks and coffee but has enough rice and canned goods for a few more days.",
+      urgency: "low",
+    },
   ],
   medical: [
-    "Diabetic patient needs insulin, pharmacy flooded.",
-    "Pregnant woman needs transport to nearest clinic.",
-    "Several residents with wounds, need first aid supplies.",
+    {
+      description: "Diabetic patient has been without insulin for over 24 hours and is showing signs of a diabetic emergency.",
+      urgency: "critical",
+    },
+    {
+      description: "Woman in active labor, contractions minutes apart, road to the nearest clinic is flooded and impassable by car.",
+      urgency: "critical",
+    },
+    {
+      description: "Resident has a deep laceration from debris that won't stop bleeding, needs wound care supplies urgently.",
+      urgency: "high",
+    },
+    {
+      description: "Several residents have minor cuts and scrapes from wading through debris, need basic first aid supplies.",
+      urgency: "medium",
+    },
+    {
+      description: "Family requesting extra allergy medication as a precaution, no immediate symptoms.",
+      urgency: "low",
+    },
   ],
   evacuation: [
-    "20 households need evacuation, water rising fast.",
-    "Nearby evacuation center at full capacity, need overflow site.",
-    "Trapped residents on rooftop, need boat rescue.",
+    {
+      description: "Family of 5, including two small children, trapped on their roof as water continues to rise, need boat rescue now.",
+      urgency: "critical",
+    },
+    {
+      description: "20 households in a low-lying block need evacuation, water is waist-deep and rising fast, several non-swimmers among them.",
+      urgency: "critical",
+    },
+    {
+      description: "Nearby evacuation center has reached full capacity, roughly 15 families still need an overflow site before nightfall.",
+      urgency: "high",
+    },
+    {
+      description: "Residents on the second floor are safe for now but want to evacuate before the access road floods completely.",
+      urgency: "medium",
+    },
+    {
+      description: "A few residents are asking about evacuation center locations for tomorrow as a precaution, no immediate danger.",
+      urgency: "low",
+    },
   ],
   other: [
-    "Need clean drinking water, tap water contaminated.",
-    "Generator needed for evacuation center, power out.",
-    "Blankets and dry clothes needed for evacuees.",
+    {
+      description: "Evacuation center generator has failed, no power for the oxygen concentrators several elderly evacuees depend on.",
+      urgency: "critical",
+    },
+    {
+      description: "Tap water in the area is visibly contaminated with sewage runoff, dozens of households have no safe drinking water.",
+      urgency: "high",
+    },
+    {
+      description: "Evacuation center needs a generator, power has been out for hours and phones are running low on battery.",
+      urgency: "medium",
+    },
+    {
+      description: "Evacuees are cold overnight and need extra blankets and dry clothes, no immediate health risk.",
+      urgency: "low",
+    },
   ],
 };
 
@@ -70,7 +132,7 @@ export function seedReports(): Report[] {
     const location = pick(AREAS, i);
     const type = pick(NEED_TYPES, i * 3);
     const status = pick(STATUSES, i * 5);
-    const urgency = pick(URGENCY_LEVELS, i * 2);
+    const scenario = pick(SCENARIOS[type], i);
     const createdAt = new Date(now - i * 3600_000).toISOString();
 
     reports.push({
@@ -78,8 +140,8 @@ export function seedReports(): Report[] {
       type,
       location: { lat: jitter(location.lat, i), lng: jitter(location.lng, i + 1) },
       area: location.area,
-      description: pick(DESCRIPTIONS[type], i),
-      urgency,
+      description: scenario.description,
+      urgency: scenario.urgency,
       status,
       claimedBy: status === "open" ? undefined : `Responder ${(i % 4) + 1}`,
       createdAt,

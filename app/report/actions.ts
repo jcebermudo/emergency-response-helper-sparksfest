@@ -11,6 +11,7 @@
 import { revalidatePath } from "next/cache";
 import { createReport } from "@/lib/data/reports";
 import { getBaseUrl } from "@/lib/base-url";
+import { DEMO_MODE } from "@/lib/demo-mode";
 import type { NeedType, TaskType, UrgencyLevel } from "@/lib/types";
 
 /** Map frontend NeedType values to the API's TaskType vocabulary. */
@@ -20,6 +21,11 @@ const NEED_TO_TASK_TYPE: Record<NeedType, TaskType> = {
   evacuation: "rescue",
   other:      "supply",
 };
+
+// Same gate as dashboard-client.tsx's onSnapshot: true when this deploy
+// should behave like a real, Firebase-backed production app.
+const HAS_FIREBASE_CONFIG = Boolean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+const IS_LIVE_FIREBASE = !DEMO_MODE && HAS_FIREBASE_CONFIG;
 
 export interface CreateReportState {
   status: "idle" | "success" | "error";
@@ -48,9 +54,19 @@ export async function createReportAction(
     };
   }
 
-  // If a Firebase ID token was forwarded, hit the real Firestore API route.
-  // Otherwise fall back to the in-memory mock store (demo / local dev without creds).
-  if (idToken) {
+  // In a live Firebase deploy, a missing token is a real problem (not
+  // signed in, or the client failed to fetch one) — surface it as an error
+  // instead of silently writing to the non-persistent mock store, which
+  // shows "success" but the report vanishes. Mock fallback is only for
+  // when Firebase genuinely isn't configured (local dev / demo).
+  if (IS_LIVE_FIREBASE && !idToken) {
+    return {
+      status: "error",
+      message: "You must be signed in to submit a report. Please sign in and try again.",
+    };
+  }
+
+  if (IS_LIVE_FIREBASE) {
     const res = await fetch(`${getBaseUrl()}/api/tasks`, {
       method: "POST",
       headers: {
@@ -75,7 +91,8 @@ export async function createReportAction(
       };
     }
   } else {
-    // Mock path — no auth token available
+    // Mock path — Firebase isn't configured for this deploy at all (local
+    // dev / demo). Not reached when IS_LIVE_FIREBASE, even without a token.
     await createReport({
       type,
       urgency,

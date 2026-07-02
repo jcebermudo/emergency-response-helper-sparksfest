@@ -11,6 +11,7 @@
 import { revalidatePath } from "next/cache";
 import { claimReport, getReports, updateReportStatus } from "@/lib/data/reports";
 import { getBaseUrl } from "@/lib/base-url";
+import { DEMO_MODE } from "@/lib/demo-mode";
 import type { Report, ReportStatus } from "@/lib/types";
 
 export interface ActionResult {
@@ -20,6 +21,10 @@ export interface ActionResult {
 }
 
 const BASE_URL = getBaseUrl();
+// Same gate as dashboard-client.tsx's onSnapshot: true when this deploy
+// should behave like a real, Firebase-backed production app.
+const HAS_FIREBASE_CONFIG = Boolean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+const IS_LIVE_FIREBASE = !DEMO_MODE && HAS_FIREBASE_CONFIG;
 
 async function apiPost<T>(
   path: string,
@@ -47,10 +52,18 @@ export async function claimReportAction(
     return { status: "error", message: "Enter your name before claiming a report." };
   }
 
-  if (idToken) {
+  // A missing token in a live Firebase deploy is a real problem (not signed
+  // in, or the client failed to fetch one) — surface it instead of silently
+  // claiming in the non-persistent mock store, which shows "success" but
+  // never actually claims the real report.
+  if (IS_LIVE_FIREBASE && !idToken) {
+    return { status: "error", message: "You must be signed in to claim a report. Please sign in and try again." };
+  }
+
+  if (IS_LIVE_FIREBASE) {
     const { ok, data } = await apiPost<{ error?: string }>(
       `/api/tasks/${reportId}/claim`,
-      idToken
+      idToken!
     );
     if (!ok) {
       return { status: "error", message: (data as { error?: string }).error ?? "Could not claim task." };
@@ -59,7 +72,7 @@ export async function claimReportAction(
     return { status: "success" };
   }
 
-  // Mock fallback
+  // Mock fallback — only reached when Firebase isn't configured for this deploy
   try {
     const report = await claimReport(reportId, responderName.trim());
     revalidatePath("/dashboard");
@@ -79,11 +92,18 @@ export async function updateStatusAction(
     return { status: "error", message: "Enter your name before updating a report." };
   }
 
-  // Map frontend statuses to the API's resolved endpoint
-  if (idToken && status === "resolved") {
+  // Only "resolved" has a real Firestore endpoint today — "in_progress"
+  // intentionally always uses the mock fallback below, live deploy or not.
+  const hasRealEndpoint = status === "resolved";
+
+  if (IS_LIVE_FIREBASE && hasRealEndpoint && !idToken) {
+    return { status: "error", message: "You must be signed in to update this report. Please sign in and try again." };
+  }
+
+  if (IS_LIVE_FIREBASE && hasRealEndpoint) {
     const { ok, data } = await apiPost<{ error?: string }>(
       `/api/tasks/${reportId}/resolve`,
-      idToken
+      idToken!
     );
     if (!ok) {
       return { status: "error", message: (data as { error?: string }).error ?? "Could not resolve task." };
@@ -92,7 +112,8 @@ export async function updateStatusAction(
     return { status: "success" };
   }
 
-  // Mock fallback (also handles in_progress which has no Firestore endpoint yet)
+  // Mock fallback — Firebase not configured for this deploy, or no real
+  // endpoint exists yet for this status transition (e.g. in_progress).
   try {
     const report = await updateReportStatus(reportId, status, responderName.trim());
     revalidatePath("/dashboard");

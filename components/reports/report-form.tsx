@@ -31,6 +31,10 @@ export function ReportForm() {
   const [state, formAction, pending] = useActionState(createReportAction, initialState);
   const { user, getToken } = useAuth();
   const [idToken, setIdToken] = useState("");
+  // True while a signed-in user's token is being fetched — blocks
+  // submission so a fast click can't race ahead of it and silently fall
+  // back to the (non-persistent) mock path. See app/report/actions.ts.
+  const [tokenLoading, setTokenLoading] = useState(false);
   const [type, setType] = useState<NeedType>(NEED_TYPES[0]);
   const [urgency, setUrgency] = useState<UrgencyLevel>(URGENCY_LEVELS[0]);
   const [area, setArea] = useState("");
@@ -41,12 +45,15 @@ export function ReportForm() {
   // (disabled in DEMO_MODE — always submits via the mock store, see lib/demo-mode.ts)
   useEffect(() => {
     if (DEMO_MODE || !user) {
-      Promise.resolve().then(() => setIdToken(""));
+      setIdToken("");
+      setTokenLoading(false);
       return;
     }
+    setTokenLoading(true);
     getToken()
       .then(setIdToken)
-      .catch(() => setIdToken(""));
+      .catch(() => setIdToken(""))
+      .finally(() => setTokenLoading(false));
   }, [user, getToken]);
 
   return (
@@ -124,10 +131,10 @@ export function ReportForm() {
 
         <button
           type="submit"
-          disabled={pending || !location}
+          disabled={pending || !location || tokenLoading}
           className="w-full rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
         >
-          {pending ? "Submitting..." : "Submit Report"}
+          {pending ? "Submitting..." : tokenLoading ? "Preparing..." : "Submit Report"}
         </button>
         {!location && (
           <p className="text-xs text-slate-500">Click on the map to pin the location.</p>

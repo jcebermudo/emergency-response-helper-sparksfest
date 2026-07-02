@@ -10,6 +10,7 @@
 
 import { revalidatePath } from "next/cache";
 import { claimReport, getReports, updateReportStatus } from "@/lib/data/reports";
+import { getBaseUrl } from "@/lib/base-url";
 import type { Report, ReportStatus } from "@/lib/types";
 
 export interface ActionResult {
@@ -18,7 +19,7 @@ export interface ActionResult {
   report?: Report;
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+const BASE_URL = getBaseUrl();
 
 async function apiPost<T>(
   path: string,

@@ -10,6 +10,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createReport } from "@/lib/data/reports";
+import { getBaseUrl } from "@/lib/base-url";
 import type { NeedType, TaskType, UrgencyLevel } from "@/lib/types";
 
 /** Map frontend NeedType values to the API's TaskType vocabulary. */
@@ -50,8 +51,7 @@ export async function createReportAction(
   // If a Firebase ID token was forwarded, hit the real Firestore API route.
   // Otherwise fall back to the in-memory mock store (demo / local dev without creds).
   if (idToken) {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/api/tasks`, {
+    const res = await fetch(`${getBaseUrl()}/api/tasks`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

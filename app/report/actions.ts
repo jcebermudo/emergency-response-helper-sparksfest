@@ -34,6 +34,7 @@ export async function createReportAction(
   const area = String(formData.get("area") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const contactInfo = String(formData.get("contactInfo") ?? "").trim();
+  const reportedBy = String(formData.get("reportedBy") ?? "").trim();
   const lat = Number(formData.get("lat"));
   const lng = Number(formData.get("lng"));
   // ID token forwarded from the client via a hidden field (set by ReportForm)
@@ -75,6 +76,7 @@ export async function createReportAction(
       description,
       location: { lat, lng },
       contactInfo: contactInfo || undefined,
+      reportedBy: reportedBy || undefined,
     });
   }
 

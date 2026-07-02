@@ -16,6 +16,7 @@ functions/node_modules/
 
 # next.js
 /.next/
+/.next-*/
 /out/
 
 # production
@@ -36,6 +37,9 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# demo file-backed mock store (lib/data/store.ts) — regenerated on first run
+/.demo-store
 
 # typescript
 *.tsbuildinfo

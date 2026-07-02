@@ -14,6 +14,7 @@ import { useAuth } from "@/lib/auth-context";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import { Select } from "@/components/ui/select";
 import { AreaAutocomplete } from "@/components/reports/area-autocomplete";
+import { useResponderName } from "@/lib/use-responder-name";
 
 const LocationPicker = dynamic(
   () => import("@/components/map/location-picker").then((m) => m.LocationPicker),
@@ -34,6 +35,7 @@ export function ReportForm() {
   const [urgency, setUrgency] = useState<UrgencyLevel>(URGENCY_LEVELS[0]);
   const [area, setArea] = useState("");
   const [focus, setFocus] = useState<{ lat: number; lng: number } | null>(null);
+  const { name: reportedBy } = useResponderName();
 
   // Refresh the ID token whenever the signed-in user changes
   // (disabled in DEMO_MODE — always submits via the mock store, see lib/demo-mode.ts)
@@ -107,9 +109,10 @@ export function ReportForm() {
           />
         </div>
 
-        {/* Hidden fields — location coords + Firebase ID token */}
+        {/* Hidden fields — location coords + fake-login reporter name + Firebase ID token */}
         <input type="hidden" name="lat" value={location?.lat ?? ""} />
         <input type="hidden" name="lng" value={location?.lng ?? ""} />
+        <input type="hidden" name="reportedBy" value={reportedBy} />
         <input type="hidden" name="__idToken" value={idToken} />
 
         {state.status === "error" && (

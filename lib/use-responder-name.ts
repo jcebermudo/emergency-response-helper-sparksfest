@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { getDemoUserName } from "@/lib/demo-user";
 
 const STORAGE_KEY = "erh-responder-name";
 
@@ -9,8 +10,11 @@ function subscribe(callback: () => void) {
   return () => window.removeEventListener("storage", callback);
 }
 
+// Falls back to the port-based fake demo identity (lib/demo-user.ts) instead
+// of blank, so the app feels "logged in" without a real auth flow. Still
+// overridable — typing a name here persists it and takes over.
 function getSnapshot() {
-  return window.localStorage.getItem(STORAGE_KEY) ?? "";
+  return window.localStorage.getItem(STORAGE_KEY) ?? getDemoUserName();
 }
 
 function getServerSnapshot() {

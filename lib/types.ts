@@ -21,6 +21,8 @@ export interface Report {
   status: ReportStatus;
   claimedBy?: string;
   contactInfo?: string;
+  /** Fake-login display name of whoever submitted this report (see lib/demo-user.ts). */
+  reportedBy?: string;
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
 }
@@ -32,6 +34,7 @@ export interface NewReportInput {
   description: string;
   urgency: UrgencyLevel;
   contactInfo?: string;
+  reportedBy?: string;
 }
 
 /** A past resolved incident used to drive the predictive-insights heuristic. */

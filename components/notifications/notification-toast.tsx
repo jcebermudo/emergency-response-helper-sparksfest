@@ -3,8 +3,18 @@
 import { useEffect } from "react";
 import type { Report } from "@/lib/types";
 import { needTypeLabels } from "@/lib/ui/urgency-colors";
+import { DEMO_MODE } from "@/lib/demo-mode";
 
 const AUTO_DISMISS_MS = 8000;
+const FALLBACK_REPORTER_NAME = "A community member";
+
+// In DEMO_MODE, reportedBy already holds a friendly display name. In
+// production, reportedBy is a Firebase uid — never show that raw, only the
+// server-resolved reportedByName (see app/api/tasks/route.ts) or a fallback.
+function reporterLabel(report: Report): string {
+  if (DEMO_MODE) return report.reportedBy || FALLBACK_REPORTER_NAME;
+  return report.reportedByName || FALLBACK_REPORTER_NAME;
+}
 
 export function NotificationToast({
   report,
@@ -35,8 +45,9 @@ export function NotificationToast({
         </button>
       </div>
       <p className="mt-1 text-xs text-slate-600">
-        <span className="font-medium text-slate-800">{report.reportedBy}</span> reported{" "}
-        {needTypeLabels[report.type]} in {report.area}.
+        <span className="font-medium text-slate-800">{reporterLabel(report)}</span> reported{" "}
+        {needTypeLabels[report.type]}
+        {report.area ? ` in ${report.area}` : ""}.
       </p>
       <button
         onClick={() => onView(report.id)}

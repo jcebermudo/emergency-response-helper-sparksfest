@@ -21,8 +21,15 @@ export interface Report {
   status: ReportStatus;
   claimedBy?: string;
   contactInfo?: string;
-  /** Fake-login display name of whoever submitted this report (see lib/demo-user.ts). */
+  /**
+   * Who submitted this report. In DEMO_MODE, the fake-login display name
+   * (see lib/demo-user.ts) directly; for real Firestore-backed reports,
+   * the reporter's Firebase uid — use reportedByName for display.
+   */
   reportedBy?: string;
+  /** Display name for a real (non-DEMO_MODE) report's reporter, snapshotted
+   *  server-side at creation time — see app/api/tasks/route.ts. */
+  reportedByName?: string;
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
 }
@@ -63,11 +70,18 @@ export type TaskStatus = "open" | "claimed" | "resolved";
 
 export interface Task {
   type: TaskType;
+  /** Original frontend NeedType, kept alongside the narrower `type` so the
+   *  UI (needTypeLabels) can render the same fidelity as a mock Report. */
+  needType?: NeedType;
+  area?: string;
+  urgency?: UrgencyLevel;
   status: TaskStatus;
   /** firebase-admin GeoPoint on server; firebase/firestore GeoPoint on client */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any;
   reportedBy: string;
+  /** Snapshotted server-side at creation from users/{reportedBy}.displayName. */
+  reportedByName?: string;
   claimedBy: string | null;
   description: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

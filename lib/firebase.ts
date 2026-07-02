@@ -16,3 +16,5 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 export const db   = getFirestore(app);
 export const auth = getAuth(app);
+
+export const HAS_FIREBASE_CONFIG = Boolean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);

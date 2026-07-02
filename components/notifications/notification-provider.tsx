@@ -1,49 +1,72 @@
 "use client";
 
 /**
- * NotificationProvider — polls the shared mock store (lib/data/store.ts,
- * file-backed so it's visible across the separate `next dev` processes each
- * fake-login port runs as, see lib/demo-user.ts) and pops a toast whenever
- * someone else's report shows up. Mounted once in the root layout so it
- * works from any page, not just the dashboard.
+ * NotificationProvider — pops a toast whenever someone else's report shows
+ * up, so it works from any page (mounted once in the root layout), not just
+ * the dashboard. Two independent data sources depending on environment:
  *
- * Dev-only — pairs with the fake port-based login (lib/demo-user.ts) and
- * the file-backed store, neither of which mean anything in production.
+ *  - Dev: polls the file-backed mock store (lib/data/store.ts, shared
+ *    across the separate `next dev` processes each fake-login port runs as,
+ *    see lib/demo-user.ts) via refetchReportsAction.
+ *  - Production: a Firestore onSnapshot listener on `tasks`, active once a
+ *    user is signed in (same gate as dashboard-client.tsx's realtime path).
+ *    Reporter display names come from Report.reportedByName, snapshotted
+ *    server-side at task-creation time (app/api/tasks/route.ts) — a
+ *    client-side users/{uid} lookup won't work here since firestore.rules
+ *    only lets a user read their own profile doc (or an LGU account).
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import type { Report } from "@/lib/types";
 import { refetchReportsAction } from "@/app/dashboard/actions";
 import { useResponderName } from "@/lib/use-responder-name";
+import { useAuth } from "@/lib/auth-context";
+import { DEMO_MODE } from "@/lib/demo-mode";
+import { db, HAS_FIREBASE_CONFIG } from "@/lib/firebase";
+import { taskDocToReport } from "@/lib/data/task-to-report";
 import { NotificationToast } from "@/components/notifications/notification-toast";
 
 const POLL_INTERVAL_MS = 6000;
-const IS_DEV = process.env.NODE_ENV === "development";
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { name } = useResponderName();
+  const { user } = useAuth();
   const router = useRouter();
   const [toasts, setToasts] = useState<Report[]>([]);
-  // null until the first poll establishes a baseline, so pre-existing
-  // reports never fire a notification on load.
-  const seenIds = useRef<Set<string> | null>(null);
 
+  const dismiss = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
+  const view = useCallback(
+    (id: string) => {
+      dismiss(id);
+      router.push("/dashboard");
+    },
+    [dismiss, router]
+  );
+
+  // ── Dev path: poll the mock store ──────────────────────────────────────
   useEffect(() => {
-    if (!IS_DEV) return;
+    if (!DEMO_MODE) return;
     let cancelled = false;
+    // null until the first poll establishes a baseline, so pre-existing
+    // reports never fire a notification on load.
+    let seenIds: Set<string> | null = null;
 
     async function poll() {
       const reports = await refetchReportsAction();
       if (cancelled) return;
 
-      if (seenIds.current === null) {
-        seenIds.current = new Set(reports.map((r) => r.id));
+      if (seenIds === null) {
+        seenIds = new Set(reports.map((r) => r.id));
         return;
       }
 
-      const fresh = reports.filter((r) => !seenIds.current!.has(r.id));
-      fresh.forEach((r) => seenIds.current!.add(r.id));
+      const fresh = reports.filter((r) => !seenIds!.has(r.id));
+      fresh.forEach((r) => seenIds!.add(r.id));
 
       const fromOthers = fresh.filter((r) => r.reportedBy && r.reportedBy !== name);
       if (fromOthers.length > 0) {
@@ -59,17 +82,32 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     };
   }, [name]);
 
-  const dismiss = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((r) => r.id !== id));
-  }, []);
+  // ── Production path: live Firestore listener ───────────────────────────
+  useEffect(() => {
+    if (DEMO_MODE || !HAS_FIREBASE_CONFIG || !user) return;
 
-  const view = useCallback(
-    (id: string) => {
-      dismiss(id);
-      router.push("/dashboard");
-    },
-    [dismiss, router]
-  );
+    let seenIds: Set<string> | null = null;
+
+    const q = query(collection(db, "tasks"), orderBy("createdAt", "desc"));
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const reports = snap.docs.map((d) => taskDocToReport(d.id, d.data() as Record<string, unknown>));
+
+      if (seenIds === null) {
+        seenIds = new Set(reports.map((r) => r.id));
+        return;
+      }
+
+      const fresh = reports.filter((r) => !seenIds!.has(r.id));
+      fresh.forEach((r) => seenIds!.add(r.id));
+
+      const fromOthers = fresh.filter((r) => r.reportedBy && r.reportedBy !== user.uid);
+      if (fromOthers.length > 0) {
+        setToasts((prev) => [...prev, ...fromOthers]);
+      }
+    });
+
+    return unsubscribe;
+  }, [user]);
 
   return (
     <>

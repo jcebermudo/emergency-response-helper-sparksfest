@@ -25,8 +25,9 @@ import { ClaimPanel } from "@/components/reports/claim-panel";
 import { useResponderName } from "@/lib/use-responder-name";
 import { useAuth } from "@/lib/auth-context";
 import { refetchReportsAction } from "@/app/dashboard/actions";
-import { db } from "@/lib/firebase";
+import { db, HAS_FIREBASE_CONFIG } from "@/lib/firebase";
 import { DEMO_MODE } from "@/lib/demo-mode";
+import { taskDocToReport } from "@/lib/data/task-to-report";
 
 const DisasterMap = dynamic(
   () => import("@/components/map/disaster-map").then((m) => m.DisasterMap),
@@ -34,35 +35,8 @@ const DisasterMap = dynamic(
 );
 
 const POLL_INTERVAL_MS = 9000;
-const HAS_FIREBASE_CONFIG = Boolean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
 
 type ViewMode = "list" | "kanban";
-
-/** Convert a Firestore task document to the frontend Report shape. */
-function taskDocToReport(id: string, data: Record<string, unknown>): Report {
-  return {
-    id,
-    type: (data.type as Report["type"]) ?? "other",
-    location: {
-      lat: (data.location as { latitude: number })?.latitude ?? 0,
-      lng: (data.location as { longitude: number })?.longitude ?? 0,
-    },
-    area: (data.area as string) ?? "",
-    description: (data.description as string) ?? "",
-    urgency: (data.urgency as Report["urgency"]) ?? "medium",
-    status: (data.status as ReportStatus) ?? "open",
-    claimedBy: (data.claimedBy as string | undefined) ?? undefined,
-    contactInfo: (data.contactInfo as string | undefined) ?? undefined,
-    createdAt:
-      typeof data.createdAt === "object" && data.createdAt !== null
-        ? (data.createdAt as { toDate(): Date }).toDate().toISOString()
-        : String(data.createdAt ?? ""),
-    updatedAt:
-      typeof data.updatedAt === "object" && data.updatedAt !== null
-        ? (data.updatedAt as { toDate(): Date }).toDate().toISOString()
-        : String(data.updatedAt ?? ""),
-  };
-}
 
 export function DashboardClient({ initialReports }: { initialReports: Report[] }) {
   const [reports, setReports] = useState(initialReports);

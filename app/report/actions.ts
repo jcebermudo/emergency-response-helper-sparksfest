@@ -57,7 +57,14 @@ export async function createReportAction(
         "Content-Type": "application/json",
         Authorization: `Bearer ${idToken}`,
       },
-      body: JSON.stringify({ type: NEED_TO_TASK_TYPE[type], location: { lat, lng }, description }),
+      body: JSON.stringify({
+        type: NEED_TO_TASK_TYPE[type],
+        needType: type,
+        location: { lat, lng },
+        description,
+        area,
+        urgency,
+      }),
     });
 
     if (!res.ok) {

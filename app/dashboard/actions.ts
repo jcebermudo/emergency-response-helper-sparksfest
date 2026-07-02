@@ -33,10 +33,15 @@ async function verifyToken(idToken: string): Promise<{ uid: string } | { error: 
     const decoded = await auth.verifyIdToken(idToken);
     return { uid: decoded.uid };
   } catch (err) {
+    // Logged so the real cause shows up in Vercel's runtime logs — a caught
+    // error like this doesn't crash the request, so nothing gets logged
+    // unless we do it explicitly.
+    console.error("verifyIdToken failed:", err);
     if (isCredentialError(err)) {
       return { error: { status: "error", message: "Server credentials not configured. Set FIREBASE_SERVICE_ACCOUNT." } };
     }
-    return { error: { status: "error", message: "Your session has expired. Please sign in again." } };
+    const detail = err instanceof Error ? err.message : String(err);
+    return { error: { status: "error", message: `Your session has expired. Please sign in again. (${detail})` } };
   }
 }
 

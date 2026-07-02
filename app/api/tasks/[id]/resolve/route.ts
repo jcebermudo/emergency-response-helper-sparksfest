@@ -7,9 +7,8 @@
  * Requires Authorization: Bearer <firebase-id-token> header.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { FieldValue } from "firebase-admin/firestore";
-import { db, auth, isCredentialError } from "@/lib/firebase-admin";
-import { Task } from "@/lib/types";
+import { auth, isCredentialError } from "@/lib/firebase-admin";
+import { resolveTaskForUser, TaskActionError } from "@/lib/server/tasks";
 
 export async function POST(
   request: NextRequest,
@@ -17,7 +16,6 @@ export async function POST(
 ) {
   const { id: taskId } = await params;
 
-  // ── Auth ────────────────────────────────────────────────────────────────
   const token = request.headers.get("authorization")?.replace("Bearer ", "");
   if (!token) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
@@ -36,50 +34,16 @@ export async function POST(
 
   const { notes } = (await request.json().catch(() => ({}))) as { notes?: string };
 
-  // ── Role check ──────────────────────────────────────────────────────────
-  const userSnap = await db.doc(`users/${uid}`).get();
-  const role = userSnap.data()?.role as string | undefined;
-  const isLGU = role === "lgu";
-
-  // ── Transaction ─────────────────────────────────────────────────────────
-  const taskRef = db.doc(`tasks/${taskId}`);
-  const auditRef = db.collection("audit").doc();
-
   try {
-    await db.runTransaction(async (tx) => {
-      const snap = await tx.get(taskRef);
-      if (!snap.exists) throw new Error("NOT_FOUND");
-
-      const task = snap.data() as Task;
-      if (task.status !== "claimed") throw new Error(`BAD_STATUS:${task.status}`);
-      if (!isLGU && task.claimedBy !== uid) throw new Error("FORBIDDEN");
-
-      tx.update(taskRef, {
-        status: "resolved",
-        updatedAt: FieldValue.serverTimestamp(),
-        ...(notes ? { resolutionNotes: notes } : {}),
-      });
-      tx.set(auditRef, {
-        taskId,
-        action: "resolved",
-        performedBy: uid,
-        previousStatus: "claimed",
-        timestamp: FieldValue.serverTimestamp(),
-      });
-    });
+    await resolveTaskForUser(uid, taskId, notes);
+    return NextResponse.json({ success: true });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "";
-    if (msg === "NOT_FOUND")
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
-    if (msg.startsWith("BAD_STATUS:"))
-      return NextResponse.json({ error: `Task must be claimed first (current: ${msg.split(":")[1]})` }, { status: 409 });
-    if (msg === "FORBIDDEN")
-      return NextResponse.json({ error: "Only the assigned responder or LGU can resolve this task" }, { status: 403 });
+    if (err instanceof TaskActionError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     if (isCredentialError(err)) {
       return NextResponse.json({ error: "Server credentials not configured. Set FIREBASE_SERVICE_ACCOUNT in .env.local." }, { status: 503 });
     }
     throw err;
   }
-
-  return NextResponse.json({ success: true });
 }

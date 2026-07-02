@@ -4,13 +4,16 @@
  * app/dashboard/actions.ts
  *
  * Server Actions consumed by the dashboard.
- * Each action tries the real Firestore API routes when an ID token is supplied;
- * falls back to the in-memory mock store when no token is present (demo mode).
+ * Each action writes directly to Firestore (via lib/server/tasks.ts,
+ * in-process, no HTTP self-fetch) when an ID token is supplied and Firebase
+ * is configured for this deploy; falls back to the in-memory mock store
+ * otherwise (demo mode).
  */
 
 import { revalidatePath } from "next/cache";
 import { claimReport, getReports, updateReportStatus } from "@/lib/data/reports";
-import { getBaseUrl } from "@/lib/base-url";
+import { auth, isCredentialError } from "@/lib/firebase-admin";
+import { claimTaskForUser, resolveTaskForUser, TaskActionError } from "@/lib/server/tasks";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import type { Report, ReportStatus } from "@/lib/types";
 
@@ -20,27 +23,21 @@ export interface ActionResult {
   report?: Report;
 }
 
-const BASE_URL = getBaseUrl();
 // Same gate as dashboard-client.tsx's onSnapshot: true when this deploy
 // should behave like a real, Firebase-backed production app.
 const HAS_FIREBASE_CONFIG = Boolean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
 const IS_LIVE_FIREBASE = !DEMO_MODE && HAS_FIREBASE_CONFIG;
 
-async function apiPost<T>(
-  path: string,
-  idToken: string,
-  body?: unknown
-): Promise<{ ok: boolean; data: T }> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${idToken}`,
-    },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
-  const data = await res.json().catch(() => ({}));
-  return { ok: res.ok, data };
+async function verifyToken(idToken: string): Promise<{ uid: string } | { error: ActionResult }> {
+  try {
+    const decoded = await auth.verifyIdToken(idToken);
+    return { uid: decoded.uid };
+  } catch (err) {
+    if (isCredentialError(err)) {
+      return { error: { status: "error", message: "Server credentials not configured. Set FIREBASE_SERVICE_ACCOUNT." } };
+    }
+    return { error: { status: "error", message: "Your session has expired. Please sign in again." } };
+  }
 }
 
 export async function claimReportAction(
@@ -61,15 +58,22 @@ export async function claimReportAction(
   }
 
   if (IS_LIVE_FIREBASE) {
-    const { ok, data } = await apiPost<{ error?: string }>(
-      `/api/tasks/${reportId}/claim`,
-      idToken!
-    );
-    if (!ok) {
-      return { status: "error", message: (data as { error?: string }).error ?? "Could not claim task." };
+    const verified = await verifyToken(idToken!);
+    if ("error" in verified) return verified.error;
+
+    try {
+      await claimTaskForUser(verified.uid, reportId);
+      revalidatePath("/dashboard");
+      return { status: "success" };
+    } catch (err) {
+      if (err instanceof TaskActionError) {
+        return { status: "error", message: err.message };
+      }
+      if (isCredentialError(err)) {
+        return { status: "error", message: "Server credentials not configured. Set FIREBASE_SERVICE_ACCOUNT." };
+      }
+      throw err;
     }
-    revalidatePath("/dashboard");
-    return { status: "success" };
   }
 
   // Mock fallback — only reached when Firebase isn't configured for this deploy
@@ -101,15 +105,22 @@ export async function updateStatusAction(
   }
 
   if (IS_LIVE_FIREBASE && hasRealEndpoint) {
-    const { ok, data } = await apiPost<{ error?: string }>(
-      `/api/tasks/${reportId}/resolve`,
-      idToken!
-    );
-    if (!ok) {
-      return { status: "error", message: (data as { error?: string }).error ?? "Could not resolve task." };
+    const verified = await verifyToken(idToken!);
+    if ("error" in verified) return verified.error;
+
+    try {
+      await resolveTaskForUser(verified.uid, reportId);
+      revalidatePath("/dashboard");
+      return { status: "success" };
+    } catch (err) {
+      if (err instanceof TaskActionError) {
+        return { status: "error", message: err.message };
+      }
+      if (isCredentialError(err)) {
+        return { status: "error", message: "Server credentials not configured. Set FIREBASE_SERVICE_ACCOUNT." };
+      }
+      throw err;
     }
-    revalidatePath("/dashboard");
-    return { status: "success" };
   }
 
   // Mock fallback — Firebase not configured for this deploy, or no real

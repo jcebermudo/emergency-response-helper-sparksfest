@@ -3,14 +3,16 @@
 /**
  * app/report/actions.ts
  *
- * createReportAction — calls the real POST /api/tasks endpoint when Firebase
- * credentials are available; falls back to the in-memory mock store otherwise
- * (so the demo still works without a Firebase project).
+ * createReportAction — writes directly to Firestore (via lib/server/tasks.ts,
+ * in-process, no HTTP self-fetch) when Firebase credentials are available;
+ * falls back to the in-memory mock store otherwise (so the demo still works
+ * without a Firebase project).
  */
 
 import { revalidatePath } from "next/cache";
 import { createReport } from "@/lib/data/reports";
-import { getBaseUrl } from "@/lib/base-url";
+import { auth, isCredentialError } from "@/lib/firebase-admin";
+import { createTaskForUser, TaskActionError } from "@/lib/server/tasks";
 import { DEMO_MODE } from "@/lib/demo-mode";
 import type { NeedType, TaskType, UrgencyLevel } from "@/lib/types";
 
@@ -67,28 +69,33 @@ export async function createReportAction(
   }
 
   if (IS_LIVE_FIREBASE) {
-    const res = await fetch(`${getBaseUrl()}/api/tasks`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${idToken}`,
-      },
-      body: JSON.stringify({
+    let uid: string;
+    try {
+      uid = (await auth.verifyIdToken(idToken)).uid;
+    } catch (err) {
+      if (isCredentialError(err)) {
+        return { status: "error", message: "Server credentials not configured. Set FIREBASE_SERVICE_ACCOUNT." };
+      }
+      return { status: "error", message: "Your session has expired. Please sign in again." };
+    }
+
+    try {
+      await createTaskForUser(uid, {
         type: NEED_TO_TASK_TYPE[type],
         needType: type,
         location: { lat, lng },
         description,
         area,
         urgency,
-      }),
-    });
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      return {
-        status: "error",
-        message: data?.error ?? `Server error: ${res.status}`,
-      };
+      });
+    } catch (err) {
+      if (err instanceof TaskActionError) {
+        return { status: "error", message: err.message };
+      }
+      if (isCredentialError(err)) {
+        return { status: "error", message: "Server credentials not configured. Set FIREBASE_SERVICE_ACCOUNT." };
+      }
+      throw err;
     }
   } else {
     // Mock path — Firebase isn't configured for this deploy at all (local

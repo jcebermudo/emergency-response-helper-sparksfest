@@ -5,9 +5,8 @@
  * Requires Authorization: Bearer <firebase-id-token> header.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { FieldValue } from "firebase-admin/firestore";
-import { db, auth, isCredentialError } from "@/lib/firebase-admin";
-import { Task } from "@/lib/types";
+import { auth, isCredentialError } from "@/lib/firebase-admin";
+import { claimTaskForUser, TaskActionError } from "@/lib/server/tasks";
 
 export async function POST(
   request: NextRequest,
@@ -15,7 +14,6 @@ export async function POST(
 ) {
   const { id: taskId } = await params;
 
-  // ── Auth ────────────────────────────────────────────────────────────────
   const token = request.headers.get("authorization")?.replace("Bearer ", "");
   if (!token) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
@@ -32,52 +30,16 @@ export async function POST(
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
-  // ── Role check ──────────────────────────────────────────────────────────
-  const userSnap = await db.doc(`users/${uid}`).get();
-  const role = userSnap.data()?.role as string | undefined;
-  if (role !== "responder" && role !== "lgu") {
-    return NextResponse.json(
-      { error: "Only responders or LGU can claim tasks" },
-      { status: 403 }
-    );
-  }
-
-  // ── Transaction ─────────────────────────────────────────────────────────
-  const taskRef = db.doc(`tasks/${taskId}`);
-  const auditRef = db.collection("audit").doc();
-
   try {
-    await db.runTransaction(async (tx) => {
-      const snap = await tx.get(taskRef);
-      if (!snap.exists) throw new Error("NOT_FOUND");
-
-      const task = snap.data() as Task;
-      if (task.status !== "open") throw new Error(`ALREADY_${task.status.toUpperCase()}`);
-
-      tx.update(taskRef, {
-        status: "claimed",
-        claimedBy: uid,
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-      tx.set(auditRef, {
-        taskId,
-        action: "claimed",
-        performedBy: uid,
-        previousStatus: "open",
-        timestamp: FieldValue.serverTimestamp(),
-      });
-    });
+    await claimTaskForUser(uid, taskId);
+    return NextResponse.json({ success: true });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "";
-    if (msg === "NOT_FOUND")
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
-    if (msg.startsWith("ALREADY_"))
-      return NextResponse.json({ error: `Task is already ${msg.replace("ALREADY_", "").toLowerCase()}` }, { status: 409 });
+    if (err instanceof TaskActionError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     if (isCredentialError(err)) {
       return NextResponse.json({ error: "Server credentials not configured. Set FIREBASE_SERVICE_ACCOUNT in .env.local." }, { status: 503 });
     }
     throw err;
   }
-
-  return NextResponse.json({ success: true });
 }

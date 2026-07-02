@@ -132,7 +132,9 @@ export function seedReports(): Report[] {
     const location = pick(AREAS, i);
     const type = pick(NEED_TYPES, i * 3);
     const status = pick(STATUSES, i * 5);
-    const scenario = pick(SCENARIOS[type], i);
+    // Different multiplier than type/status so scenario severity doesn't
+    // correlate with which type or status a report happens to land on.
+    const scenario = pick(SCENARIOS[type], i * 7 + 3);
     const createdAt = new Date(now - i * 3600_000).toISOString();
 
     reports.push({

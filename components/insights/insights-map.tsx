@@ -1,16 +1,19 @@
 "use client";
 
 /**
- * InsightsMap — Google Maps implementation.
- * Shows predicted high-need areas as circle overlays sized and coloured by risk score.
+ * InsightsMap — shows predicted high-need areas on the map.
+ * Each area is a circle marker sized and colored by its risk score.
+ *
+ * Uses Leaflet instead of Google Maps for the demo — no API key/quota
+ * dependency (see lib/demo-mode.ts).
  */
 
-import { useEffect, useRef } from "react";
-import { loadLibrary } from "@/lib/gmaps";
+import "leaflet/dist/leaflet.css";
+import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import type { PredictedAreaInsight } from "@/lib/types";
 import { needTypeLabels } from "@/lib/ui/urgency-colors";
 
-const METRO_MANILA_CENTER = { lat: 14.65, lng: 121.05 };
+const METRO_MANILA_CENTER: [number, number] = [14.65, 121.05];
 
 function scoreToColor(score: number): string {
   if (score >= 15) return "#dc2626"; // red — critical
@@ -20,76 +23,49 @@ function scoreToColor(score: number): string {
 }
 
 function scoreToRadius(score: number): number {
-  // metres — clamp between 800 m and 3 000 m
-  return Math.max(800, Math.min(3000, score * 150));
+  return Math.max(12, Math.min(34, score * 1.8));
 }
 
 export function InsightsMap({ insights }: { insights: PredictedAreaInsight[] }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const circlesRef = useRef<google.maps.Circle[]>([]);
-
-  // Initialise map once
-  useEffect(() => {
-    if (!containerRef.current) return;
-    let cancelled = false;
-
-    loadLibrary("maps").then(({ Map }) => {
-      if (cancelled || !containerRef.current) return;
-      if (!mapRef.current) {
-        mapRef.current = new Map(containerRef.current, {
-          center: METRO_MANILA_CENTER,
-          zoom: 11,
-          mapId: "insights-map",
-        });
-      }
-    });
-
-    return () => { cancelled = true; };
-  }, []);
-
-  // Sync circles whenever insights change
-  useEffect(() => {
-    if (!mapRef.current) return;
-
-    circlesRef.current.forEach((c) => c.setMap(null));
-    circlesRef.current = [];
-
-    const map = mapRef.current;
-
-    loadLibrary("maps").then(({ Circle, InfoWindow }) => {
-      insights.forEach((insight, i) => {
-        const color = scoreToColor(insight.score);
-
-        const circle = new Circle({
-          map,
-          center: { lat: insight.lat, lng: insight.lng },
-          radius: scoreToRadius(insight.score),
-          strokeColor: color,
-          strokeOpacity: 0.9,
-          strokeWeight: 2,
-          fillColor: color,
-          fillOpacity: 0.35,
-        });
-
-        const infoWindow = new InfoWindow({
-          content: `
-            <div style="font-size:13px;min-width:160px;line-height:1.5">
-              <strong>#${i + 1} ${insight.area}</strong><br/>
-              Likely need: ${needTypeLabels[insight.dominantNeedType] ?? insight.dominantNeedType}<br/>
-              <span style="color:#555">Risk score: <strong>${insight.score.toFixed(1)}</strong> &middot; ${insight.sampleSize} incidents</span>
-            </div>`,
-        });
-
-        circle.addListener("click", (e: google.maps.MapMouseEvent) => {
-          infoWindow.setPosition(e.latLng);
-          infoWindow.open(map);
-        });
-
-        circlesRef.current.push(circle);
-      });
-    });
-  }, [insights]);
-
-  return <div ref={containerRef} style={{ height: "100%", width: "100%" }} />;
+  return (
+    <MapContainer
+      center={METRO_MANILA_CENTER}
+      zoom={11}
+      scrollWheelZoom
+      style={{ height: "100%", width: "100%" }}
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      {insights.map((insight, i) => (
+        <CircleMarker
+          key={insight.area}
+          center={[insight.lat, insight.lng]}
+          radius={scoreToRadius(insight.score)}
+          pathOptions={{
+            color: scoreToColor(insight.score),
+            fillColor: scoreToColor(insight.score),
+            fillOpacity: 0.45,
+            weight: 2,
+          }}
+        >
+          <Popup>
+            <div className="space-y-1 text-sm min-w-[160px]">
+              <p className="font-semibold">
+                #{i + 1} {insight.area}
+              </p>
+              <p className="text-slate-600">
+                Likely need: {needTypeLabels[insight.dominantNeedType]}
+              </p>
+              <p className="text-slate-500">
+                Risk score: <strong>{insight.score.toFixed(1)}</strong> &middot;{" "}
+                {insight.sampleSize} historical incidents
+              </p>
+            </div>
+          </Popup>
+        </CircleMarker>
+      ))}
+    </MapContainer>
+  );
 }
